@@ -1,0 +1,3 @@
+[submodule "etdiscovery"]
+	path = etdiscovery
+	url = https://github.com/SwingCosmic/easytier-discovery.git
