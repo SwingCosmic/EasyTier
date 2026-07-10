@@ -4129,6 +4129,95 @@ pub async fn config_patch_disable_relay_data_test() {
     drop_insts(insts).await;
 }
 
+#[tokio::test]
+#[serial_test::serial]
+pub async fn route_peer_info_node_type_fields_propagate_and_update() {
+    use crate::proto::api::config::InstanceConfigPatch;
+
+    let insts = init_three_node_ex("udp", |cfg| cfg, false).await;
+    let target_peer_id = insts[1].peer_id();
+
+    insts[1]
+        .get_config_patcher()
+        .apply_patch(InstanceConfigPatch {
+            node_type_flags: Some(0x1234_5678),
+            node_type_app_id: Some(42),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(
+        insts[1].get_global_ctx().config.get_node_type_flags(),
+        0x1234_5678
+    );
+    assert_eq!(
+        insts[1].get_global_ctx().config.get_node_type_app_id(),
+        Some(42)
+    );
+
+    wait_for_condition(
+        || {
+            let peer_mgr = insts[0].get_peer_manager().clone();
+            async move {
+                peer_mgr
+                    .get_peer_map()
+                    .get_route_peer_info(target_peer_id)
+                    .await
+                    .is_some_and(|info| {
+                        info.node_type_flags == 0x1234_5678 && info.node_type_app_id == Some(42)
+                    })
+            }
+        },
+        Duration::from_secs(5),
+    )
+    .await;
+
+    wait_for_condition(
+        || {
+            let peer_mgr = insts[0].get_peer_manager().clone();
+            async move {
+                peer_mgr.list_routes().await.iter().any(|route| {
+                    route.peer_id == target_peer_id
+                        && route.node_type_flags == 0x1234_5678
+                        && route.node_type_app_id == Some(42)
+                })
+            }
+        },
+        Duration::from_secs(5),
+    )
+    .await;
+
+    insts[1]
+        .get_config_patcher()
+        .apply_patch(InstanceConfigPatch {
+            node_type_flags: Some(0),
+            node_type_app_id: Some(99),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    wait_for_condition(
+        || {
+            let peer_mgr = insts[0].get_peer_manager().clone();
+            async move {
+                peer_mgr
+                    .get_peer_map()
+                    .get_route_peer_info(target_peer_id)
+                    .await
+                    .is_some_and(|info| {
+                        info.node_type_flags == 0 && info.node_type_app_id == Some(99)
+                    })
+            }
+        },
+        Duration::from_secs(5),
+    )
+    .await;
+
+    drop_insts(insts).await;
+}
+
 /// Generate SecureModeConfig with specified x25519 private key
 pub fn generate_secure_mode_config_with_key(
     private_key: &x25519_dalek::StaticSecret,

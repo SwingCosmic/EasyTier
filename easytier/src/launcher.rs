@@ -880,6 +880,14 @@ impl NetworkConfig {
             );
         }
 
+        if let Some(node_type_flags) = self.node_type_flags {
+            cfg.set_node_type_flags(node_type_flags);
+        }
+
+        if self.node_type_app_id.is_some() {
+            cfg.set_node_type_app_id(self.node_type_app_id);
+        }
+
         let mut flags = gen_default_flags();
         if let Some(latency_first) = self.latency_first {
             flags.latency_first = latency_first;
@@ -1195,6 +1203,9 @@ impl NetworkConfig {
         result.disable_sym_hole_punching = Some(flags.disable_sym_hole_punching);
         result.enable_magic_dns = Some(flags.accept_dns);
         result.mtu = Some(flags.mtu as i32);
+        result.node_type_flags =
+            (config.get_node_type_flags() != 0).then_some(config.get_node_type_flags());
+        result.node_type_app_id = config.get_node_type_app_id();
         result.data_compress_algo = (flags.data_compress_algo != default_flags.data_compress_algo)
             .then_some(flags.data_compress_algo);
         result.encryption_algorithm = (flags.encryption_algorithm

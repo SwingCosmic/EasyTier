@@ -63,6 +63,64 @@ message RoutePeerInfo {
 }
 ```
 
+说明：
+
+- 上面的 proto 片段仍保留完整设计草案，包含未来阶段计划中的 `listener_protocols`
+- 截至第一阶段实际落地，只有 `node_type_flags = 25` 与 `optional node_type_app_id = 27` 已实现
+- `listener_protocols = 26` 目前仍是预留设计，尚未进入代码
+
+## 当前实现状态
+
+截至 2026-07-10，EasyTier 主仓库已完成第一阶段最小落地，范围刻意收敛为“字段通路打通”，不做官方能力体系落地：
+
+- 已实现
+  - `RoutePeerInfo` 已增加 `node_type_flags = 25`
+  - `RoutePeerInfo` 已增加 `optional node_type_app_id = 27`
+  - 配置模型已支持外部写入这两个字段
+  - 运行时 patch 已支持修改这两个字段
+  - 本节点 `RoutePeerInfo` 广播时会携带这两个字段
+  - `NodeInfo` 与 `api.instance.Route` 已对外透出这两个字段
+- 暂未实现
+  - `listener_protocols`
+  - 官方低 16 位常量
+  - 应用高位常量
+  - 自动推导与自动填充
+  - 面向普通表格输出的符号化展示
+
+当前实现遵循以下边界：
+
+- `node_type_flags` 与 `node_type_app_id` 当前只是透明传输字段。
+- EasyTier 核心不解释这些 bit 的业务语义。
+- EasyTier 核心不根据 listeners、flags、portal、proxy 等现有状态自动生成这些 bit。
+- 是否使用某个 bit、如何分配某个 app id，由上层应用自行约定。
+
+已落地的代码入口包括：
+
+- `peer_rpc.proto` 中的 `RoutePeerInfo`
+- 配置读写接口 `ConfigLoader`
+- 运行时 patch `InstanceConfigPatch`
+- 广播出口 `RoutePeerInfo::new_updated_self()`
+- 观测出口 `node info` / `route list` JSON 输出
+
+已完成的最小验证包括：
+
+- 单元测试验证本地 `RoutePeerInfo` 会带上配置的 `node_type_flags` / `node_type_app_id`
+- 三节点测试验证字段会随 route 同步传播，并支持运行时 patch 更新
+- 手工运行验证确认：
+  - `node config` 能看到配置值
+  - `node info` 能看到运行时值
+  - 其他节点通过 `route list` 可以观察到广播后的值
+
+推荐的手工验证命令：
+
+```powershell
+.\target\debug\easytier-cli.exe -v -o json node config
+.\target\debug\easytier-cli.exe -v -o json node info
+.\target\debug\easytier-cli.exe -v -o json route list
+```
+
+后续章节中的官方位定义、`listener_protocols`、应用常量与自动填充规则，当前都仍属于后续阶段设计，不代表第一阶段已经实现。
+
 约束：
 
 - `node_type_flags == 0` 且 `node_type_app_id == 0` 表示未声明能力或普通 peer。
@@ -287,13 +345,15 @@ pub mod node_type_app_id {
 
 ## 渐进式落地计划
 
-### 阶段 1：字段与常量
+### 阶段 1：最小字段通路
 
 - 在 `RoutePeerInfo` 中增加 `node_type_flags` 和 `node_type_app_id`。
-- 在 `RoutePeerInfo` 中增加 `listener_protocols` 字段。
-- 增加 EasyTier 官方低位能力常量。
-- 增加 listener protocol 常量。
-- 增加常见应用命名空间 ID 常量。
+- 为配置系统增加这两个字段的读写入口。
+- 为运行时 patch 增加这两个字段的修改入口。
+- 在路由广播与查询输出中透传这两个字段。
+- 不新增 `listener_protocols`。
+- 不引入任何官方或应用常量。
+- 不做自动填充。
 
 ### 阶段 2：官方能力填充
 

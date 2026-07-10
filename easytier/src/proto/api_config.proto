@@ -28,6 +28,8 @@ message InstanceConfigPatch {
   optional bool ipv6_public_addr_auto = 12;
   optional string ipv6_public_addr_prefix = 13;
   optional bool disable_relay_data = 14;
+  optional uint32 node_type_flags = 15;
+  optional uint32 node_type_app_id = 16;
 }
 
 message PortForwardPatch {

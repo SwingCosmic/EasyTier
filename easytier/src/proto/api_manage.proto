@@ -103,6 +103,8 @@ message NetworkConfig {
   optional bool enable_udp_broadcast_relay = 66;
   optional uint32 socket_mark = 67;
   repeated NetworkPeerConfig peers = 68;
+  optional uint32 node_type_flags = 69;
+  optional uint32 node_type_app_id = 70;
 }
 
 message NetworkPeerConfig {

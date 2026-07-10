@@ -264,6 +264,12 @@ pub trait ConfigLoader: Send + Sync {
     fn get_flags(&self) -> Flags;
     fn set_flags(&self, flags: Flags);
 
+    fn get_node_type_flags(&self) -> u32;
+    fn set_node_type_flags(&self, flags: u32);
+
+    fn get_node_type_app_id(&self) -> Option<u32>;
+    fn set_node_type_app_id(&self, app_id: Option<u32>);
+
     fn get_exit_nodes(&self) -> Vec<IpAddr>;
     fn set_exit_nodes(&self, nodes: Vec<IpAddr>);
 
@@ -602,6 +608,9 @@ struct Config {
     port_forward: Option<Vec<PortForwardConfig>>,
 
     secure_mode: Option<SecureModeConfig>,
+
+    node_type_flags: Option<u32>,
+    node_type_app_id: Option<u32>,
 
     flags: Option<serde_json::Map<String, serde_json::Value>>,
 
@@ -1014,6 +1023,26 @@ impl ConfigLoader for TomlConfigLoader {
 
     fn set_flags(&self, flags: Flags) {
         self.config.lock().unwrap().flags_struct = Some(flags);
+    }
+
+    fn get_node_type_flags(&self) -> u32 {
+        self.config
+            .lock()
+            .unwrap()
+            .node_type_flags
+            .unwrap_or_default()
+    }
+
+    fn set_node_type_flags(&self, flags: u32) {
+        self.config.lock().unwrap().node_type_flags = Some(flags);
+    }
+
+    fn get_node_type_app_id(&self) -> Option<u32> {
+        self.config.lock().unwrap().node_type_app_id
+    }
+
+    fn set_node_type_app_id(&self, app_id: Option<u32>) {
+        self.config.lock().unwrap().node_type_app_id = app_id;
     }
 
     fn get_exit_nodes(&self) -> Vec<IpAddr> {

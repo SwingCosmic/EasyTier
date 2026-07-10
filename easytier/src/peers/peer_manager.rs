@@ -2040,6 +2040,8 @@ impl PeerManager {
             feature_flag: Some(self.global_ctx.get_feature_flags()),
             ip_list: Some(self.global_ctx.get_ip_collector().collect_ip_addrs().await),
             public_ipv6_addr: self.get_my_public_ipv6_addr().await.map(Into::into),
+            node_type_flags: self.global_ctx.config.get_node_type_flags(),
+            node_type_app_id: self.global_ctx.config.get_node_type_app_id(),
             ipv6_public_addr_prefix: self
                 .global_ctx
                 .get_advertised_ipv6_public_addr_prefix()

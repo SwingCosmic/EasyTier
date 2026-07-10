@@ -47,6 +47,18 @@ async fn test_route_peer_info_ipv6() {
 }
 
 #[tokio::test]
+async fn test_route_peer_info_node_type_fields() {
+    let global_ctx = get_mock_global_ctx();
+    global_ctx.config.set_node_type_flags(0x1234_5678);
+    global_ctx.config.set_node_type_app_id(Some(7));
+
+    let updated_info = RoutePeerInfo::new_updated_self(123, 456, &global_ctx, None);
+
+    assert_eq!(updated_info.node_type_flags, 0x1234_5678);
+    assert_eq!(updated_info.node_type_app_id, Some(7));
+}
+
+#[tokio::test]
 async fn test_peer_manager_ipv6() {
     let global_ctx = get_mock_global_ctx();
     let (packet_sender, _packet_receiver) = tokio::sync::mpsc::channel(100);

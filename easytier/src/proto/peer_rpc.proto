@@ -50,6 +50,8 @@ message RoutePeerInfo {
 
   optional common.Ipv6Inet ipv6_public_addr_prefix = 22;
   optional common.Ipv6Inet ipv6_public_addr_lease = 24;
+  uint32 node_type_flags = 25;
+  optional uint32 node_type_app_id = 27;
 }
 
 message PeerIdVersion {

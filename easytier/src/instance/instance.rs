@@ -383,6 +383,14 @@ impl InstanceConfigPatcher {
             flags.disable_relay_data = disable_relay_data;
             global_ctx.set_flags(flags);
         }
+        if let Some(node_type_flags) = patch.node_type_flags {
+            global_ctx.config.set_node_type_flags(node_type_flags);
+        }
+        if let Some(node_type_app_id) = patch.node_type_app_id {
+            global_ctx
+                .config
+                .set_node_type_app_id(Some(node_type_app_id));
+        }
         if let Some(enabled) = patch.ipv6_public_addr_provider {
             global_ctx.config.set_ipv6_public_addr_provider(enabled);
             provider_config_changed = true;

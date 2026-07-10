@@ -218,6 +218,8 @@ impl RoutePeerInfo {
             trusted_credential_pubkeys: Vec::new(),
             ipv6_public_addr_prefix: None,
             ipv6_public_addr_lease: None,
+            node_type_flags: 0,
+            node_type_app_id: None,
         }
     }
 
@@ -296,6 +298,8 @@ impl RoutePeerInfo {
             } else {
                 Vec::new()
             },
+            node_type_flags: global_ctx.config.get_node_type_flags(),
+            node_type_app_id: global_ctx.config.get_node_type_app_id(),
 
             ..Default::default()
         }
@@ -373,6 +377,8 @@ impl From<RoutePeerInfo> for crate::proto::api::instance::Route {
             ipv6_addr: val.ipv6_addr,
             public_ipv6_addr: val.ipv6_public_addr_lease,
             ipv6_public_addr_prefix: val.ipv6_public_addr_prefix,
+            node_type_flags: val.node_type_flags,
+            node_type_app_id: val.node_type_app_id,
         }
     }
 }

@@ -83,6 +83,8 @@ message Route {
   common.Ipv6Inet ipv6_addr = 15;
   common.Ipv6Inet public_ipv6_addr = 16;
   common.Ipv6Inet ipv6_public_addr_prefix = 17;
+  uint32 node_type_flags = 18;
+  optional uint32 node_type_app_id = 19;
 }
 
 message PeerRoutePair {
@@ -104,6 +106,8 @@ message NodeInfo {
   peer_rpc.GetIpListResponse ip_list = 11;
   common.Ipv6Inet public_ipv6_addr = 12;
   common.Ipv6Inet ipv6_public_addr_prefix = 13;
+  uint32 node_type_flags = 14;
+  optional uint32 node_type_app_id = 15;
 }
 
 message ShowNodeInfoRequest { InstanceIdentifier instance = 1; }
