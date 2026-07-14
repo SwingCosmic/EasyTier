@@ -2,10 +2,11 @@ name: EasyTier Core
 
 on:
   push:
-    branches: [ "develop", "main", "releases/**" ]
+    branches: [ "develop", "main", "releases/**", "feature/**" ]
   pull_request:
     branches: [ "develop", "main" ]
     types: [ opened, synchronize, reopened, ready_for_review ]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -26,8 +27,8 @@ jobs:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     # Map a step output to a job output
     outputs:
-      # do not skip push on branch starts with releases/
-      should_skip: ${{ steps.skip_check.outputs.should_skip == 'true' && !startsWith(github.ref_name, 'releases/') }}
+      # do not skip push on branch starts with releases/ or feature/
+      should_skip: ${{ steps.skip_check.outputs.should_skip == 'true' && !startsWith(github.ref_name, 'releases/') && !startsWith(github.ref_name, 'feature/') }}
     steps:
       - id: skip_check
         uses: fkirc/skip-duplicate-actions@v5
@@ -256,6 +257,9 @@ jobs:
           name: easytier-${{ matrix.ARTIFACT_NAME }}
           path: |
             ./artifacts/*
+          # feature: short-lived; main: Actions max (90d) — durable "latest" is the rolling Release below;
+          # other branches: 30d.
+          retention-days: ${{ startsWith(github.ref_name, 'feature/') && 7 || (github.ref_name == 'main' && 90 || 30) }}
 
   build_magisk:
     runs-on: ubuntu-latest
@@ -290,6 +294,7 @@ jobs:
             !./easytier-contrib/easytier-magisk/build.sh
             !./easytier-contrib/easytier-magisk/magisk_update.json
           if-no-files-found: error
+          retention-days: ${{ startsWith(github.ref_name, 'feature/') && 7 || (github.ref_name == 'main' && 90 || 30) }}
 
   core-result:
     runs-on: ubuntu-latest
@@ -299,3 +304,86 @@ jobs:
       - name: Mark result as failed
         if: contains(needs.*.result, 'failure')
         run: exit 1
+
+      - name: Publish artifact summary
+        if: success()
+        run: |
+          {
+            echo "### EasyTier Core build artifacts"
+            echo ""
+            echo "- Branch: \`${{ github.ref_name }}\`"
+            echo "- Commit: \`${{ github.sha }}\`"
+            echo "- Run: [open Actions run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo ""
+            echo "Run artifacts: feature **7d** · main **90d** (Actions maximum) · other **30d**."
+            if [ "${{ github.ref_name }}" = "main" ]; then
+              echo ""
+              echo "On **main**, binaries are also published to the rolling Release tag \`latest\` (always overwritten)."
+              echo "Stable download base: ${{ github.server_url }}/${{ github.repository }}/releases/download/latest/"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Rolling "latest" Release for main: permanent public URLs, assets always replaced.
+  # (GitHub Actions artifacts cannot live forever or be overwritten in place; max retention is 90 days.)
+  publish-latest:
+    runs-on: ubuntu-latest
+    needs: [ pre_job, build, build_magisk, core-result ]
+    if: >
+      needs.pre_job.result == 'success'
+      && needs.pre_job.outputs.should_skip != 'true'
+      && needs.core-result.result == 'success'
+      && github.ref == 'refs/heads/main'
+      && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && !cancelled()
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release_assets
+
+      - name: Zip assets with stable names
+        run: |
+          set -euo pipefail
+          mkdir -p zipped_assets
+          ls -la release_assets
+          cd release_assets
+          for x in *; do
+            [ -e "$x" ] || continue
+            if [ "$x" = "Easytier-Magisk" ]; then
+              (cd "$x" && zip -r "../../zipped_assets/${x}.zip" .)
+            elif [ -d "$x" ]; then
+              zip -r "../zipped_assets/${x}.zip" "$x"
+            else
+              # flat single-file artifact
+              zip -j "../zipped_assets/${x}.zip" "$x"
+            fi
+          done
+          ls -la ../zipped_assets
+
+      - name: Publish rolling latest release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: latest
+          name: Latest main build
+          body: |
+            Continuous Core build from `main` (always overwritten).
+
+            | | |
+            |---|---|
+            | Commit | `${{ github.sha }}` |
+            | Workflow run | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |
+            | Generated (UTC) | ${{ github.event.head_commit.timestamp || github.run_started_at }} |
+
+            Example asset URL:
+            `${{ github.server_url }}/${{ github.repository }}/releases/download/latest/easytier-linux-x86_64.zip`
+          artifacts: zipped_assets/*
+          artifactErrorsFailBuild: true
+          allowUpdates: true
+          replacesArtifacts: true
+          prerelease: true
+          makeLatest: true
+          removeArtifacts: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+
