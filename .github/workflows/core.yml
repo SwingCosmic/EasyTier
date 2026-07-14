@@ -2,7 +2,7 @@ name: EasyTier Core
 
 on:
   push:
-    branches: [ "develop", "main", "releases/**", "feature/**" ]
+    branches: [ "develop", "main", "releases/**" ]
   pull_request:
     branches: [ "develop", "main" ]
     types: [ opened, synchronize, reopened, ready_for_review ]
@@ -27,8 +27,8 @@ jobs:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     # Map a step output to a job output
     outputs:
-      # do not skip push on branch starts with releases/ or feature/
-      should_skip: ${{ steps.skip_check.outputs.should_skip == 'true' && !startsWith(github.ref_name, 'releases/') && !startsWith(github.ref_name, 'feature/') }}
+      # do not skip push on branch starts with releases/
+      should_skip: ${{ steps.skip_check.outputs.should_skip == 'true' && !startsWith(github.ref_name, 'releases/') }}
     steps:
       - id: skip_check
         uses: fkirc/skip-duplicate-actions@v5
@@ -257,9 +257,9 @@ jobs:
           name: easytier-${{ matrix.ARTIFACT_NAME }}
           path: |
             ./artifacts/*
-          # feature: short-lived; main: Actions max (90d) — durable "latest" is the rolling Release below;
-          # other branches: 30d.
-          retention-days: ${{ startsWith(github.ref_name, 'feature/') && 7 || (github.ref_name == 'main' && 90 || 30) }}
+          # main: Actions max (90d); durable "latest" also published as rolling Release.
+          # other branches: 30d. Feature branches use ci-feature.yml instead.
+          retention-days: ${{ github.ref_name == 'main' && 90 || 30 }}
 
   build_magisk:
     runs-on: ubuntu-latest
@@ -294,7 +294,7 @@ jobs:
             !./easytier-contrib/easytier-magisk/build.sh
             !./easytier-contrib/easytier-magisk/magisk_update.json
           if-no-files-found: error
-          retention-days: ${{ startsWith(github.ref_name, 'feature/') && 7 || (github.ref_name == 'main' && 90 || 30) }}
+          retention-days: ${{ github.ref_name == 'main' && 90 || 30 }}
 
   core-result:
     runs-on: ubuntu-latest
@@ -315,7 +315,7 @@ jobs:
             echo "- Commit: \`${{ github.sha }}\`"
             echo "- Run: [open Actions run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
             echo ""
-            echo "Run artifacts: feature **7d** · main **90d** (Actions maximum) · other **30d**."
+            echo "Run artifacts: main **90d** (Actions maximum) · other **30d**."
             if [ "${{ github.ref_name }}" = "main" ]; then
               echo ""
               echo "On **main**, binaries are also published to the rolling Release tag \`latest\` (always overwritten)."
